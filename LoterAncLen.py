@@ -45,7 +45,7 @@ def get_segment_info(row):
                 start_col = row.index[start_index]
                 end_col = row.index[idx - 1]
                 diff = end_col - start_col
-                # 只记录列名之差大于2的片段
+                # 只记录列名之差大于多少的片段
                 if diff >= args.Length:
                     segments.append(diff)
             segment_length = 0
