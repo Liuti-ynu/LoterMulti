@@ -23,12 +23,11 @@ with open(args.vcf_file, 'r', encoding='utf-8') as vcf_file:
     # 提取每个记录的 POS 列
     pos_list = [record.POS for record in vcf_reader]
 
-
 #loter结果，以vcf文件的pos为列名
 loter_result = pd.read_csv(args.loter_file,sep=" ",header=None)
 loter_result.columns = pos_list
 
-# 获取连续祖先片段的总数、每个片段的起始和终止位置的列名
+# 获取连续祖先片段的起始和终止位置的列名及其长度
 def get_segment_info(row):
     segments = []
     segment_length = 0
@@ -47,7 +46,7 @@ def get_segment_info(row):
                 diff = end_col - start_col
                 # 只记录列名之差大于多少的片段
                 if diff >= args.Length:
-                    segments.append(diff)
+                    segments.append((start_col, end_col, diff))
             segment_length = 0
             start_index = None
     
@@ -57,24 +56,17 @@ def get_segment_info(row):
         end_col = row.index[len(row) - 1]
         diff = end_col - start_col
         if diff >= args.Length:
-            segments.append(diff)
+            segments.append((start_col, end_col, diff))
     
-    return {
-        'total_segments': len(segments),  # 总片段数
-        'differences': segments  # 每个片段的终止位置与起始位置之差
-    }
+    return segments
 
 # 应用函数到每一行
-Ancestry = loter_result.apply(get_segment_info, axis=1)
+segments_list = []
+for index, row in loter_result.iterrows():
+    segments = get_segment_info(row)
+    for start_col, end_col, diff in segments:
+        segments_list.append([index+1, start_col, end_col, diff])
 
-Ancestry.to_csv(args.output_file,sep="\t", index=False, header=None)
-# 读取文件内容
-with open(args.output_file, "r", encoding="utf-8") as f:
-    content = f.read()
-
-# 去掉 '{', '}', 和单引号
-content = content.replace("{", "").replace("}", "").replace("'", "")
-
-# 写入新的文件
-with open(args.output_file, "w", encoding="utf-8") as f:
-    f.write(content)
+# 转换为DataFrame并保存到文件
+segments_df = pd.DataFrame(segments_list, columns=['Row', 'Start_Column', 'End_Column', 'Segment_Length'])
+segments_df.to_csv(args.output_file, sep="\t", index=False)
